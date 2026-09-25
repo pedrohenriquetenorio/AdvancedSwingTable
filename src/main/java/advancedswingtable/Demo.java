@@ -21,18 +21,57 @@ public class Demo extends javax.swing.JFrame {
      * Creates new form Demo
      */
     public Demo() {
-        initComponents();
-    testarTabela();
+    initComponents();
 
-    }
- 
+    paginationPanel1.addPropertyChangeListener(
+            "advPaginationStatus",
+            evt -> jLabel1.setText(
+                    paginationPanel1.getAdvPaginationStatus()
+            )
+    );
+
+    testarTabela();
+}
 private void testarTabela() {
 
+    AdvancedTableColumn codigo =
+            new AdvancedTableColumn(
+                    "Código",
+                    Long.class
+            );
+
+    AdvancedTableColumn nome =
+            new AdvancedTableColumn(
+                    "Nome",
+                    String.class,
+                    true
+            );
+
+    nome.setCustomEditor(
+            new advancedswingtable.editors.TestEditor()
+    );
+
+    nome.setCustomRenderer(
+            new advancedswingtable.renderers.TestRenderer()
+    );
+
+    AdvancedTableColumn preco =
+            new AdvancedTableColumn(
+                    "Preço",
+                    Double.class
+            );
+
+    AdvancedTableColumn ativo =
+            new AdvancedTableColumn(
+                    "Ativo",
+                    Boolean.class
+            );
+
     advancedTable1.configureColumns(
-            new AdvancedTableColumn("Código", Long.class),
-            new AdvancedTableColumn("Nome", String.class),
-            new AdvancedTableColumn("Preço", Double.class),
-            new AdvancedTableColumn("Ativo", Boolean.class)
+            codigo,
+            nome,
+            preco,
+            ativo
     );
 
     for (int i = 1; i <= 100; i++) {
@@ -45,56 +84,12 @@ private void testarTabela() {
         );
     }
 
-    advancedTable1.setAdvStripedRows(true);
-    advancedTable1.setAdvSortable(true);
-    advancedTable1.setAdvResizableColumns(true);
-    advancedTable1.setAdvReorderableColumns(true);
+    paginationPanel1.setTable(advancedTable1);
 
     pagination =
             new PaginationController(advancedTable1);
 
     pagination.refresh();
-
-    paginationPanel2.setTable(advancedTable1);
-
-    System.out.println("===== TESTE INICIAL =====");
-    System.out.println(
-            "Total de itens: "
-            + pagination.getPagination().getTotalItems()
-    );
-
-    System.out.println(
-            "Total de páginas: "
-            + pagination.getPagination().getTotalPages()
-    );
-
-    System.out.println(
-            "Página atual: "
-            + pagination.getPagination().getCurrentPage()
-    );
-
-    System.out.println(
-            "Linhas visíveis: "
-            + advancedTable1.getRowCount()
-    );
-
-    System.out.println();
-    System.out.println("===== INDO PARA PÁGINA 2 =====");
-
-    pagination.goToPage(2);
-
-    System.out.println(
-            "Página atual: "
-            + pagination.getPagination().getCurrentPage()
-    );
-
-    System.out.println(
-            "Linhas visíveis: "
-            + advancedTable1.getRowCount()
-    );
-
-    System.out.println();
-    System.out.println("===== ADICIONANDO NOVA LINHA =====");
 
     advancedTable1.addRow(
             101L,
@@ -103,45 +98,16 @@ private void testarTabela() {
             true
     );
 
-    pagination.refresh();
-
-    System.out.println(
-            "Total de itens após adicionar: "
-            + pagination.getPagination().getTotalItems()
+    advancedTable1.addRow(
+            102L,
+            "Produto 102",
+            1071.0,
+            false
     );
 
-    System.out.println(
-            "Total de páginas após adicionar: "
-            + pagination.getPagination().getTotalPages()
+    jLabel1.setText(
+            paginationPanel1.getAdvPaginationStatus()
     );
-
-    System.out.println(
-            "Página atual: "
-            + pagination.getPagination().getCurrentPage()
-    );
-
-    System.out.println(
-            "Linhas visíveis: "
-            + advancedTable1.getRowCount()
-    );
-
-    System.out.println();
-    System.out.println("===== VOLTANDO PARA PÁGINA 1 =====");
-
-    pagination.firstPage();
-
-    System.out.println(
-            "Página atual: "
-            + pagination.getPagination().getCurrentPage()
-    );
-
-    System.out.println(
-            "Linhas visíveis: "
-            + advancedTable1.getRowCount()
-    );
-
-    System.out.println();
-    System.out.println("===== TESTE FINALIZADO =====");
 }
 
     /**
@@ -154,16 +120,13 @@ private void testarTabela() {
     private void initComponents() {
 
         txtFiltro = new javax.swing.JTextField();
-        jScrollPane1 = new javax.swing.JScrollPane();
+        jScrollPane2 = new javax.swing.JScrollPane();
         advancedTable1 = new advancedswingtable.core.AdvancedTable();
-        paginationPanel2 = new advancedswingtable.pagination.PaginationPanel();
-        jButton1 = new javax.swing.JButton();
-        jButton2 = new javax.swing.JButton();
-        jButton3 = new javax.swing.JButton();
+        jLabel1 = new javax.swing.JLabel();
+        paginationPanel1 = new advancedswingtable.pagination.PaginationPanel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
-        txtFiltro.setText("jTextField1");
         txtFiltro.addActionListener(this::txtFiltroActionPerformed);
         txtFiltro.addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyReleased(java.awt.event.KeyEvent evt) {
@@ -182,56 +145,42 @@ private void testarTabela() {
                 "Title 1", "Title 2", "Title 3", "Title 4"
             }
         ));
-        jScrollPane1.setViewportView(advancedTable1);
+        jScrollPane2.setViewportView(advancedTable1);
 
-        jButton1.setText("10");
-        jButton1.addActionListener(this::jButton1ActionPerformed);
-
-        jButton2.setText("20");
-        jButton2.addActionListener(this::jButton2ActionPerformed);
-
-        jButton3.setText("100");
-        jButton3.addActionListener(this::jButton3ActionPerformed);
+        jLabel1.setText("jLabel1");
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addContainerGap()
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(txtFiltro, javax.swing.GroupLayout.PREFERRED_SIZE, 627, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addGroup(layout.createSequentialGroup()
+                            .addContainerGap()
+                            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                                .addComponent(txtFiltro, javax.swing.GroupLayout.DEFAULT_SIZE, 627, Short.MAX_VALUE)
+                                .addComponent(jScrollPane2)))
+                        .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                            .addContainerGap()
+                            .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 187, javax.swing.GroupLayout.PREFERRED_SIZE)))
                     .addGroup(layout.createSequentialGroup()
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
-                            .addComponent(paginationPanel2, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                            .addComponent(jScrollPane1, javax.swing.GroupLayout.Alignment.LEADING))
-                        .addGap(123, 123, 123)
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                            .addComponent(jButton1)
-                            .addComponent(jButton2)
-                            .addComponent(jButton3))))
-                .addContainerGap(454, Short.MAX_VALUE))
+                        .addGap(76, 76, 76)
+                        .addComponent(paginationPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addContainerGap(474, Short.MAX_VALUE))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(layout.createSequentialGroup()
-                        .addContainerGap()
-                        .addComponent(txtFiltro, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 34, Short.MAX_VALUE)
-                        .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 368, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED))
-                    .addGroup(layout.createSequentialGroup()
-                        .addGap(161, 161, 161)
-                        .addComponent(jButton1)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jButton2)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jButton3)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
-                .addComponent(paginationPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(51, 51, 51))
+                .addContainerGap(46, Short.MAX_VALUE)
+                .addComponent(jLabel1)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(txtFiltro, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 410, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(paginationPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap())
         );
 
         pack();
@@ -242,23 +191,8 @@ private void testarTabela() {
     }//GEN-LAST:event_txtFiltroActionPerformed
 
     private void txtFiltroKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_txtFiltroKeyReleased
-    //   advancedTable1.setAdvFilter(txtFiltro.getText());
+      advancedTable1.setAdvFilter(txtFiltro.getText());
     }//GEN-LAST:event_txtFiltroKeyReleased
-
-    private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
-      pagination.getPagination().setPageSize(10);
-      pagination.refresh();
-    }//GEN-LAST:event_jButton1ActionPerformed
-
-    private void jButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton2ActionPerformed
-       pagination.getPagination().setPageSize(20);
-       pagination.refresh();
-    }//GEN-LAST:event_jButton2ActionPerformed
-
-    private void jButton3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton3ActionPerformed
-       pagination.getPagination().setPageSize(100);
-       pagination.refresh();
-    }//GEN-LAST:event_jButton3ActionPerformed
 
     /**
      * @param args the command line arguments
@@ -278,11 +212,9 @@ private void testarTabela() {
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private advancedswingtable.core.AdvancedTable advancedTable1;
-    private javax.swing.JButton jButton1;
-    private javax.swing.JButton jButton2;
-    private javax.swing.JButton jButton3;
-    private javax.swing.JScrollPane jScrollPane1;
-    private advancedswingtable.pagination.PaginationPanel paginationPanel2;
+    private javax.swing.JLabel jLabel1;
+    private javax.swing.JScrollPane jScrollPane2;
+    private advancedswingtable.pagination.PaginationPanel paginationPanel1;
     private javax.swing.JTextField txtFiltro;
     // End of variables declaration//GEN-END:variables
 }

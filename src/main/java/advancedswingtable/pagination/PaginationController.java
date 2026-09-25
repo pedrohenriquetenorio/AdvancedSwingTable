@@ -5,13 +5,25 @@ import advancedswingtable.core.AdvancedTableModel;
 import advancedswingtable.model.PaginationModel;
 
 import javax.swing.RowFilter;
+import javax.swing.event.TableModelEvent;
+import javax.swing.event.TableModelListener;
 import javax.swing.table.TableRowSorter;
+import java.util.ArrayList;
+import java.util.List;
 
 public class PaginationController {
 
     private final AdvancedTable table;
     private final AdvancedTableModel fullModel;
     private final PaginationModel pagination;
+
+    private final List<Integer> currentPageModelRows
+            = new ArrayList<>();
+
+    private boolean updating = false;
+
+    private final TableModelListener modelListener
+            = this::modelChanged;
 
     public PaginationController(AdvancedTable table) {
 
@@ -22,23 +34,179 @@ public class PaginationController {
         }
 
         if (!(table.getModel() instanceof AdvancedTableModel model)) {
+
             throw new IllegalStateException(
                     "A tabela precisa estar configurada com AdvancedTableModel."
             );
         }
 
         this.table = table;
-        this.pagination = table.getAdvPaginationModel();
+        this.pagination
+                = table.getAdvPaginationModel();
         this.fullModel = model;
+
+        configureSorter();
+
+        fullModel.addTableModelListener(modelListener);
+
+        table.addPropertyChangeListener(
+                "advFilter",
+                event -> refresh()
+        );
+
+        table.addPropertyChangeListener(
+                "advFilterable",
+                event -> refresh()
+        );
+
+        table.addPropertyChangeListener(
+                "advPageSize",
+                event -> refresh()
+        );
+    }
+
+    private void modelChanged(TableModelEvent event) {
+
+        refresh();
+    }
+
+    private void configureSorter() {
+
+        if (!(table.getRowSorter() instanceof TableRowSorter<?>)) {
+
+            table.setRowSorter(
+                    new TableRowSorter<>(fullModel)
+            );
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private TableRowSorter<AdvancedTableModel>
+            getSorter() {
+
+        if (!(table.getRowSorter() instanceof TableRowSorter<?>)) {
+
+            return null;
+        }
+
+        return (TableRowSorter<AdvancedTableModel>) table.getRowSorter();
     }
 
     public void refresh() {
 
-        pagination.setTotalItems(
-                fullModel.getRowCount()
-        );
+        if (updating) {
+            return;
+        }
 
-        showCurrentPage();
+        updating = true;
+
+        try {
+
+            TableRowSorter<AdvancedTableModel> sorter
+                    = getSorter();
+
+            if (sorter == null) {
+                return;
+            }
+
+            RowFilter<AdvancedTableModel, Integer> searchFilter
+                    = createSearchFilter();
+
+            sorter.setRowFilter(searchFilter);
+
+            int totalItems
+                    = sorter.getViewRowCount();
+
+            pagination.setTotalItems(totalItems);
+
+            currentPageModelRows.clear();
+
+            if (totalItems == 0) {
+
+                return;
+            }
+
+            applyPaginationFilter(
+                    sorter,
+                    searchFilter
+            );
+
+        } finally {
+
+            updating = false;
+        }
+    }
+
+    private RowFilter<AdvancedTableModel, Integer>
+            createSearchFilter() {
+
+        if (!table.isAdvFilterable()) {
+            return null;
+        }
+
+        String text
+                = table.getAdvFilter();
+
+        if (text == null || text.isBlank()) {
+            return null;
+        }
+
+        return RowFilter.regexFilter(
+                "(?i)"
+                + java.util.regex.Pattern.quote(text)
+        );
+    }
+
+    private void applyPaginationFilter(
+            TableRowSorter<AdvancedTableModel> sorter,
+            RowFilter<AdvancedTableModel, Integer> searchFilter) {
+
+        int start
+                = pagination.getStartIndex();
+
+        int end
+                = Math.min(
+                        pagination.getEndIndex(),
+                        sorter.getViewRowCount()
+                );
+
+        currentPageModelRows.clear();
+
+        for (int viewRow = start;
+                viewRow < end;
+                viewRow++) {
+
+            int modelRow
+                    = sorter.convertRowIndexToModel(viewRow);
+
+            currentPageModelRows.add(modelRow);
+        }
+
+        RowFilter<AdvancedTableModel, Integer> paginationFilter
+                = new RowFilter<>() {
+
+            @Override
+            public boolean include(
+                    Entry<? extends AdvancedTableModel, ? extends Integer> entry) {
+
+                return currentPageModelRows.contains(
+                        entry.getIdentifier()
+                );
+            }
+        };
+
+        List<RowFilter<? super AdvancedTableModel, ? super Integer>> filters
+                = new ArrayList<>();
+
+        if (searchFilter != null) {
+            filters.add(searchFilter);
+        }
+
+        filters.add(paginationFilter);
+
+        sorter.setRowFilter(
+                RowFilter.andFilter(filters)
+        );
     }
 
     public void nextPage() {
@@ -48,7 +216,7 @@ public class PaginationController {
         }
 
         pagination.nextPage();
-        showCurrentPage();
+        refresh();
     }
 
     public void previousPage() {
@@ -58,13 +226,13 @@ public class PaginationController {
         }
 
         pagination.previousPage();
-        showCurrentPage();
+        refresh();
     }
 
     public void firstPage() {
 
         pagination.setCurrentPage(1);
-        showCurrentPage();
+        refresh();
     }
 
     public void lastPage() {
@@ -73,80 +241,43 @@ public class PaginationController {
                 pagination.getTotalPages()
         );
 
-        showCurrentPage();
+        refresh();
     }
 
     public void goToPage(int page) {
 
         pagination.setCurrentPage(page);
-        showCurrentPage();
+        refresh();
     }
 
     public Object[][] getCurrentPageData() {
 
-        int start = pagination.getStartIndex();
-        int end = pagination.getEndIndex();
+        int columnCount
+                = fullModel.getColumnCount();
 
-        int columnCount = fullModel.getColumnCount();
+        Object[][] data
+                = new Object[currentPageModelRows.size()][columnCount];
 
-        Object[][] data =
-                new Object[end - start][columnCount];
+        for (int i = 0;
+                i < currentPageModelRows.size();
+                i++) {
 
-        for (int row = start; row < end; row++) {
+            int modelRow
+                    = currentPageModelRows.get(i);
 
-            for (int column = 0; column < columnCount; column++) {
+            for (int column = 0;
+                    column < columnCount;
+                    column++) {
 
-                data[row - start][column] =
-                        fullModel.getValueAt(row, column);
+                data[i][column]
+                        = fullModel.getValueAt(
+                                modelRow,
+                                column
+                        );
             }
         }
 
         return data;
-    }
-
-    public void showCurrentPage() {
-
-        TableRowSorter<AdvancedTableModel> sorter =
-                getTableRowSorter();
-
-        if (sorter == null) {
-
-            sorter = new TableRowSorter<>(fullModel);
-
-            table.setRowSorter(sorter);
-        }
-
-        int start = pagination.getStartIndex();
-        int end = pagination.getEndIndex();
-
-        RowFilter<AdvancedTableModel, Integer> paginationFilter =
-                new RowFilter<AdvancedTableModel, Integer>() {
-
-                    @Override
-                    public boolean include(
-                            Entry<? extends AdvancedTableModel, ? extends Integer> entry) {
-
-                        int modelRow = entry.getIdentifier();
-
-                        return modelRow >= start
-                                && modelRow < end;
-                    }
-                };
-
-        sorter.setRowFilter(paginationFilter);
-    }
-
-    @SuppressWarnings("unchecked")
-    private TableRowSorter<AdvancedTableModel> getTableRowSorter() {
-
-        if (!(table.getRowSorter()
-                instanceof TableRowSorter<?>)) {
-
-            return null;
-        }
-
-        return (TableRowSorter<AdvancedTableModel>)
-                table.getRowSorter();
     }
 
     public PaginationModel getPagination() {

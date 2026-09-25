@@ -4,6 +4,7 @@ import advancedswingtable.core.AdvancedTable;
 import advancedswingtable.model.PaginationModel;
 
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
@@ -23,6 +24,10 @@ public class PaginationPanel extends JPanel {
     private final JButton btnNext = new JButton(">");
     private final JButton btnLast = new JButton(">>");
 
+    private final JLabel lblPageSize = new JLabel("Itens:");
+    private final JComboBox<Integer> cbPageSize =
+            new JComboBox<>(new Integer[]{10, 20, 50, 100});
+
     public PaginationPanel() {
 
         add(btnFirst);
@@ -32,6 +37,8 @@ public class PaginationPanel extends JPanel {
         add(lblTotalPages);
         add(btnNext);
         add(btnLast);
+        add(lblPageSize);
+        add(cbPageSize);
 
         btnFirst.addActionListener(e -> {
 
@@ -74,6 +81,22 @@ public class PaginationPanel extends JPanel {
         });
 
         txtPage.addActionListener(e -> goToTypedPage());
+
+        cbPageSize.addActionListener(e -> {
+
+            if (table == null || controller == null) {
+                return;
+            }
+
+            Integer pageSize =
+                    (Integer) cbPageSize.getSelectedItem();
+
+            if (pageSize == null) {
+                return;
+            }
+
+            table.setAdvPageSize(pageSize);
+        });
     }
 
     public AdvancedTable getTable() {
@@ -83,8 +106,16 @@ public class PaginationPanel extends JPanel {
     public void setTable(AdvancedTable table) {
 
         this.table = table;
+
         this.controller =
                 new PaginationController(table);
+
+        Integer currentPageSize =
+                table.getAdvPageSize();
+
+        cbPageSize.setSelectedItem(
+                currentPageSize
+        );
 
         controller.refresh();
 
@@ -99,17 +130,17 @@ public class PaginationPanel extends JPanel {
 
         try {
 
-            int page = Integer.parseInt(
-                    txtPage.getText().trim()
-            );
+            int page =
+                    Integer.parseInt(
+                            txtPage.getText().trim()
+                    );
 
             controller.goToPage(page);
-            updatePageControls();
 
         } catch (NumberFormatException ex) {
-
-            updatePageControls();
         }
+
+        updatePageControls();
     }
 
     private void updatePageControls() {
@@ -150,5 +181,42 @@ public class PaginationPanel extends JPanel {
         btnLast.setEnabled(
                 pagination.hasNextPage()
         );
+
+        firePropertyChange(
+                "advPaginationStatus",
+                null,
+                getAdvPaginationStatus()
+        );
+    }
+
+    public String getAdvPaginationStatus() {
+
+        if (controller == null) {
+            return "Exibindo 0–0 de 0 registros";
+        }
+
+        PaginationModel pagination =
+                controller.getPagination();
+
+        int totalItems =
+                pagination.getTotalItems();
+
+        if (totalItems == 0) {
+            return "Exibindo 0–0 de 0 registros";
+        }
+
+        int start =
+                pagination.getStartIndex() + 1;
+
+        int end =
+                pagination.getEndIndex();
+
+        return "Exibindo "
+                + start
+                + "–"
+                + end
+                + " de "
+                + totalItems
+                + " registros";
     }
 }

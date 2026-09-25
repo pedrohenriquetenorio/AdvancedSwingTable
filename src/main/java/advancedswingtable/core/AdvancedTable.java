@@ -2,12 +2,10 @@ package advancedswingtable.core;
 
 import advancedswingtable.enums.TableSelectionMode;
 import advancedswingtable.model.PaginationModel;
-import advancedswingtable.renderers.StripedCellRenderer;
 
 import javax.swing.JTable;
 import javax.swing.ListSelectionModel;
 import javax.swing.RowFilter;
-import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableRowSorter;
@@ -18,6 +16,8 @@ public class AdvancedTable extends JTable {
     private boolean showSelection = true;
     private boolean filterable = false;
 
+    private String advFilterText = "";
+
     private final PaginationModel paginationModel =
             new PaginationModel();
 
@@ -25,9 +25,11 @@ public class AdvancedTable extends JTable {
         super();
     }
 
-    public void configureColumns(AdvancedTableColumn... columns) {
+    public void configureColumns(
+            AdvancedTableColumn... columns) {
 
         setModel(new AdvancedTableModel(columns));
+
         configureColumnProperties(columns);
     }
 
@@ -39,6 +41,7 @@ public class AdvancedTable extends JTable {
             AdvancedTableColumn column = columns[i];
 
             if (column.getPreferredWidth() > 0) {
+
                 getColumnModel()
                         .getColumn(i)
                         .setPreferredWidth(
@@ -50,6 +53,7 @@ public class AdvancedTable extends JTable {
                     column.getCustomRenderer();
 
             if (renderer != null) {
+
                 getColumnModel()
                         .getColumn(i)
                         .setCellRenderer(renderer);
@@ -59,6 +63,7 @@ public class AdvancedTable extends JTable {
                     column.getCustomEditor();
 
             if (editor != null) {
+
                 getColumnModel()
                         .getColumn(i)
                         .setCellEditor(editor);
@@ -68,7 +73,9 @@ public class AdvancedTable extends JTable {
 
     public void addRow(Object... values) {
 
-        if (!(getModel() instanceof AdvancedTableModel model)) {
+        if (!(getModel()
+                instanceof AdvancedTableModel model)) {
+
             throw new IllegalStateException(
                     "A tabela ainda não foi configurada. "
                     + "Chame configureColumns() antes de addRow()."
@@ -76,6 +83,17 @@ public class AdvancedTable extends JTable {
         }
 
         model.addData(values);
+    }
+
+    @Override
+    public TableCellRenderer getCellRenderer(
+            int row,
+            int column) {
+
+        TableCellRenderer renderer =
+                super.getCellRenderer(row, column);
+
+        return renderer;
     }
 
     public int getAdvTableRowHeight() {
@@ -98,38 +116,20 @@ public class AdvancedTable extends JTable {
         return stripedRows;
     }
 
-    public void setAdvStripedRows(boolean stripedRows) {
+    public void setAdvStripedRows(
+            boolean stripedRows) {
 
         this.stripedRows = stripedRows;
 
-        updateStripedRows();
-
         repaint();
-    }
-
-    private void updateStripedRows() {
-
-        if (stripedRows) {
-
-            setDefaultRenderer(
-                    Object.class,
-                    new StripedCellRenderer()
-            );
-
-        } else {
-
-            setDefaultRenderer(
-                    Object.class,
-                    new DefaultTableCellRenderer()
-            );
-        }
     }
 
     public boolean isAdvAutoResizeColumns() {
         return getAutoResizeMode() != AUTO_RESIZE_OFF;
     }
 
-    public void setAdvAutoResizeColumns(boolean enabled) {
+    public void setAdvAutoResizeColumns(
+            boolean enabled) {
 
         setAutoResizeMode(
                 enabled
@@ -142,7 +142,8 @@ public class AdvancedTable extends JTable {
         return getRowSelectionAllowed();
     }
 
-    public void setAdvRowSelectable(boolean selectable) {
+    public void setAdvRowSelectable(
+            boolean selectable) {
 
         setRowSelectionAllowed(selectable);
 
@@ -242,23 +243,53 @@ public class AdvancedTable extends JTable {
             boolean showSelection) {
 
         this.showSelection = showSelection;
+
         repaint();
+    }
+
+    @Override
+    public boolean isCellSelected(
+            int row,
+            int column) {
+
+        if (!showSelection) {
+            return false;
+        }
+
+        return super.isCellSelected(row, column);
     }
 
     public boolean isAdvFilterable() {
         return filterable;
     }
 
-    public void setAdvFilterable(boolean filterable) {
+    public void setAdvFilterable(
+            boolean filterable) {
+
+        boolean oldValue = this.filterable;
 
         this.filterable = filterable;
 
-        TableRowSorter<AdvancedTableModel> sorter =
-                getAdvancedRowSorter();
+        if (!filterable) {
 
-        if (!filterable && sorter != null) {
-            sorter.setRowFilter(null);
+            advFilterText = "";
+
+            if (getRowSorter()
+                    instanceof TableRowSorter<?> sorter) {
+
+                sorter.setRowFilter(null);
+            }
         }
+
+        firePropertyChange(
+                "advFilterable",
+                oldValue,
+                filterable
+        );
+    }
+
+    public String getAdvFilter() {
+        return advFilterText;
     }
 
     public void setAdvFilter(String text) {
@@ -266,6 +297,24 @@ public class AdvancedTable extends JTable {
         if (!filterable) {
             return;
         }
+
+        String oldValue = advFilterText;
+
+        advFilterText =
+                text == null
+                        ? ""
+                        : text.trim();
+
+        applyAdvTextFilter();
+
+        firePropertyChange(
+                "advFilter",
+                oldValue,
+                advFilterText
+        );
+    }
+
+    private void applyAdvTextFilter() {
 
         if (getRowSorter() == null) {
             setAutoCreateRowSorter(true);
@@ -278,16 +327,19 @@ public class AdvancedTable extends JTable {
             return;
         }
 
-        if (text == null || text.isBlank()) {
+        if (advFilterText.isBlank()) {
 
             sorter.setRowFilter(null);
+
             return;
         }
 
         sorter.setRowFilter(
                 RowFilter.regexFilter(
                         "(?i)"
-                        + java.util.regex.Pattern.quote(text)
+                        + java.util.regex.Pattern.quote(
+                                advFilterText
+                        )
                 )
         );
     }
@@ -296,7 +348,9 @@ public class AdvancedTable extends JTable {
     private TableRowSorter<AdvancedTableModel>
             getAdvancedRowSorter() {
 
-        if (!(getRowSorter() instanceof TableRowSorter<?>)) {
+        if (!(getRowSorter()
+                instanceof TableRowSorter<?>)) {
+
             return null;
         }
 
@@ -315,4 +369,21 @@ public class AdvancedTable extends JTable {
     public void setAdvCurrentPage(int page) {
         paginationModel.setCurrentPage(page);
     }
+    
+    public int getAdvPageSize() {
+    return paginationModel.getPageSize();
+}
+
+public void setAdvPageSize(int pageSize) {
+
+    int oldValue = paginationModel.getPageSize();
+
+    paginationModel.setPageSize(pageSize);
+
+    firePropertyChange(
+            "advPageSize",
+            oldValue,
+            paginationModel.getPageSize()
+    );
+}
 }
