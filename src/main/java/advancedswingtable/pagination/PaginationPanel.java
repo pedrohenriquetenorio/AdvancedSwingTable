@@ -105,6 +105,12 @@ public class PaginationPanel extends JPanel {
 
     public void setTable(AdvancedTable table) {
 
+        if (this.controller != null) {
+            // Evita vazar o listener do model antigo e garante que
+            // só o controller atual controle o filtro da tabela.
+            this.controller.dispose();
+        }
+
         this.table = table;
 
         this.controller =

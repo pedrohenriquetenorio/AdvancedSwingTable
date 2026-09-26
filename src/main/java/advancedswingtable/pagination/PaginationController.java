@@ -8,6 +8,7 @@ import javax.swing.RowFilter;
 import javax.swing.event.TableModelEvent;
 import javax.swing.event.TableModelListener;
 import javax.swing.table.TableRowSorter;
+import java.beans.PropertyChangeListener;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,9 +22,13 @@ public class PaginationController {
             = new ArrayList<>();
 
     private boolean updating = false;
+    private boolean disposed = false;
 
     private final TableModelListener modelListener
             = this::modelChanged;
+
+    private final PropertyChangeListener pageSizeListener
+            = event -> refresh();
 
     public PaginationController(AdvancedTable table) {
 
@@ -36,7 +41,9 @@ public class PaginationController {
         if (!(table.getModel() instanceof AdvancedTableModel model)) {
 
             throw new IllegalStateException(
-                    "A tabela precisa estar configurada com AdvancedTableModel."
+                    "A tabela precisa estar configurada com "
+                    + "AdvancedTableModel. Chame configureColumns() "
+                    + "antes de associar a paginação."
             );
         }
 
@@ -50,23 +57,18 @@ public class PaginationController {
         fullModel.addTableModelListener(modelListener);
 
         table.addPropertyChangeListener(
-                "advFilter",
-                event -> refresh()
-        );
-
-        table.addPropertyChangeListener(
-                "advFilterable",
-                event -> refresh()
-        );
-
-        table.addPropertyChangeListener(
                 "advPageSize",
-                event -> refresh()
+                pageSizeListener
         );
+
+        // A partir de agora este controlador é o dono exclusivo da
+        // filtragem (texto + paginação) no RowSorter da tabela — a
+        // AdvancedTable deixa de mexer no sorter diretamente enquanto
+        // este handler estiver registrado.
+        table.setFilterRefreshHandler(this::refresh);
     }
 
     private void modelChanged(TableModelEvent event) {
-
         refresh();
     }
 
@@ -94,7 +96,7 @@ public class PaginationController {
 
     public void refresh() {
 
-        if (updating) {
+        if (updating || disposed) {
             return;
         }
 
@@ -282,5 +284,29 @@ public class PaginationController {
 
     public PaginationModel getPagination() {
         return pagination;
+    }
+
+    /**
+     * Desliga este controlador: remove os listeners do model e da
+     * tabela, e devolve à AdvancedTable o controle da filtragem.
+     * Chame antes de descartar o controlador (ex: ao trocar de
+     * tabela em um PaginationPanel) para não vazar listeners.
+     */
+    public void dispose() {
+
+        if (disposed) {
+            return;
+        }
+
+        disposed = true;
+
+        fullModel.removeTableModelListener(modelListener);
+
+        table.removePropertyChangeListener(
+                "advPageSize",
+                pageSizeListener
+        );
+
+        table.setFilterRefreshHandler(null);
     }
 }

@@ -3,9 +3,12 @@ package advancedswingtable.core;
 import advancedswingtable.enums.TableSelectionMode;
 import advancedswingtable.model.PaginationModel;
 
+import java.awt.Color;
+import java.awt.Component;
 import javax.swing.JTable;
 import javax.swing.ListSelectionModel;
 import javax.swing.RowFilter;
+import javax.swing.UIManager;
 import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableRowSorter;
@@ -15,20 +18,38 @@ public class AdvancedTable extends JTable {
     private boolean stripedRows = false;
     private boolean showSelection = true;
     private boolean filterable = false;
-
+    private String advEmptyText = "Nenhum registro encontrado";
     private String advFilterText = "";
 
     private final PaginationModel paginationModel =
             new PaginationModel();
 
+    /**
+     * Quando um controlador externo (ex: PaginationController) assume
+     * o RowSorter da tabela, ele se registra aqui via
+     * setFilterRefreshHandler(). A partir desse momento, toda mudança
+     * de filtro é delegada a ele, em vez da tabela mexer no RowSorter
+     * por conta própria — evita dois RowFilters concorrentes no mesmo
+     * sorter (o bug de duplicação entre AdvancedTable e
+     * PaginationController).
+     */
+    private Runnable filterRefreshHandler = null;
+
     public AdvancedTable() {
         super();
+        setFillsViewportHeight(true);
     }
 
     public void configureColumns(
             AdvancedTableColumn... columns) {
 
         setModel(new AdvancedTableModel(columns));
+
+        // Um novo model invalida qualquer RowSorter/handler que
+        // apontava para o model anterior. Se você usa paginação,
+        // chame paginationPanel.setTable(table) de novo depois disto.
+        setRowSorter(null);
+        filterRefreshHandler = null;
 
         configureColumnProperties(columns);
     }
@@ -85,15 +106,70 @@ public class AdvancedTable extends JTable {
         model.addData(values);
     }
 
-    @Override
-    public TableCellRenderer getCellRenderer(
-            int row,
-            int column) {
+    public void removeRow(int viewRow) {
 
-        TableCellRenderer renderer =
-                super.getCellRenderer(row, column);
+        if (!(getModel()
+                instanceof AdvancedTableModel model)) {
 
-        return renderer;
+            throw new IllegalStateException(
+                    "A tabela ainda não foi configurada."
+            );
+        }
+
+        if (viewRow < 0 || viewRow >= getRowCount()) {
+            throw new IndexOutOfBoundsException(
+                    "Índice de linha inválido: " + viewRow
+            );
+        }
+
+        int modelRow =
+                convertRowIndexToModel(viewRow);
+
+        model.removeRow(modelRow);
+    }
+
+    public void removeModelRow(int modelRow) {
+
+        if (!(getModel()
+                instanceof AdvancedTableModel model)) {
+
+            throw new IllegalStateException(
+                    "A tabela ainda não foi configurada."
+            );
+        }
+
+        model.removeRow(modelRow);
+    }
+
+   public void clearRows() {
+
+    if (!(getModel()
+            instanceof AdvancedTableModel model)) {
+
+        throw new IllegalStateException(
+                "A tabela ainda não foi configurada."
+        );
+    }
+
+    model.clear();
+
+    revalidate();
+    repaint();
+}
+
+    public int getAdvRowCount() {
+        return getRowCount();
+    }
+
+    public int getAdvModelRowCount() {
+
+        if (!(getModel()
+                instanceof AdvancedTableModel model)) {
+
+            return 0;
+        }
+
+        return model.getRowCount();
     }
 
     public int getAdvTableRowHeight() {
@@ -247,6 +323,63 @@ public class AdvancedTable extends JTable {
         repaint();
     }
 
+    public String getAdvEmptyText() {
+    return advEmptyText;
+}
+
+public void setAdvEmptyText(String text) {
+
+    this.advEmptyText =
+            text == null || text.isBlank()
+                    ? "Nenhum registro encontrado"
+                    : text;
+
+    repaint();
+}
+
+@Override
+protected void paintComponent(java.awt.Graphics g) {
+
+    super.paintComponent(g);
+
+    if (getRowCount() > 0) {
+        return;
+    }
+
+    java.awt.Graphics2D g2 =
+            (java.awt.Graphics2D) g.create();
+
+    try {
+
+        g2.setColor(getForeground());
+
+        java.awt.FontMetrics metrics =
+                g2.getFontMetrics();
+
+        int textWidth =
+                metrics.stringWidth(advEmptyText);
+
+        int x =
+                (getWidth() - textWidth) / 2;
+
+        int y =
+                (getHeight()
+                        - metrics.getHeight()) / 2
+                + metrics.getAscent();
+
+        g2.drawString(
+                advEmptyText,
+                Math.max(x, 10),
+                Math.max(y, metrics.getAscent())
+        );
+
+    } finally {
+
+        g2.dispose();
+    }
+}
+    
+    
     @Override
     public boolean isCellSelected(
             int row,
@@ -257,6 +390,43 @@ public class AdvancedTable extends JTable {
         }
 
         return super.isCellSelected(row, column);
+    }
+
+    /**
+     * Aplica o efeito zebrado a QUALQUER renderer da tabela —
+     * inclusive renderers customizados por coluna, como o de ações —
+     * sem precisar registrar um DefaultRenderer manualmente por tipo.
+     * A cor de seleção sempre tem prioridade sobre a listra, e as
+     * cores respeitam o tema atual do FlatLaf (claro/escuro) porque
+     * vêm do UIManager.
+     */
+    @Override
+    public Component prepareRenderer(
+            TableCellRenderer renderer,
+            int row,
+            int column) {
+
+        Component component =
+                super.prepareRenderer(renderer, row, column);
+
+        if (stripedRows && !isCellSelected(row, column)) {
+
+            component.setBackground(
+                    row % 2 == 0
+                            ? getBackground()
+                            : getAlternateRowColor()
+            );
+        }
+
+        return component;
+    }
+
+    private Color getAlternateRowColor() {
+
+        Color color =
+                UIManager.getColor("Table.alternateRowColor");
+
+        return color != null ? color : getBackground();
     }
 
     public boolean isAdvFilterable() {
@@ -271,15 +441,10 @@ public class AdvancedTable extends JTable {
         this.filterable = filterable;
 
         if (!filterable) {
-
             advFilterText = "";
-
-            if (getRowSorter()
-                    instanceof TableRowSorter<?> sorter) {
-
-                sorter.setRowFilter(null);
-            }
         }
+
+        applyFilterChange();
 
         firePropertyChange(
                 "advFilterable",
@@ -305,7 +470,7 @@ public class AdvancedTable extends JTable {
                         ? ""
                         : text.trim();
 
-        applyAdvTextFilter();
+        applyFilterChange();
 
         firePropertyChange(
                 "advFilter",
@@ -314,7 +479,24 @@ public class AdvancedTable extends JTable {
         );
     }
 
-    private void applyAdvTextFilter() {
+    /**
+     * Ponto único de aplicação do filtro. Se um PaginationController
+     * estiver registrado, delega a ele — que sabe combinar o filtro
+     * de texto com a filtragem de página. Sem controlador registrado,
+     * aplica um filtro simples direto no RowSorter, para a tabela
+     * continuar funcional mesmo sem paginação.
+     */
+    private void applyFilterChange() {
+
+        if (filterRefreshHandler != null) {
+            filterRefreshHandler.run();
+            return;
+        }
+
+        applyStandaloneTextFilter();
+    }
+
+    private void applyStandaloneTextFilter() {
 
         if (getRowSorter() == null) {
             setAutoCreateRowSorter(true);
@@ -327,7 +509,7 @@ public class AdvancedTable extends JTable {
             return;
         }
 
-        if (advFilterText.isBlank()) {
+        if (!filterable || advFilterText.isBlank()) {
 
             sorter.setRowFilter(null);
 
@@ -358,6 +540,16 @@ public class AdvancedTable extends JTable {
                 getRowSorter();
     }
 
+    /**
+     * Usado por PaginationController para assumir o controle da
+     * filtragem (texto + paginação) neste RowSorter. Passe null para
+     * devolver o controle à tabela (ex: quando o controlador é
+     * descartado via dispose()).
+     */
+    public void setFilterRefreshHandler(Runnable handler) {
+        this.filterRefreshHandler = handler;
+    }
+
     public PaginationModel getAdvPaginationModel() {
         return paginationModel;
     }
@@ -369,21 +561,22 @@ public class AdvancedTable extends JTable {
     public void setAdvCurrentPage(int page) {
         paginationModel.setCurrentPage(page);
     }
-    
+
     public int getAdvPageSize() {
-    return paginationModel.getPageSize();
-}
+        return paginationModel.getPageSize();
+    }
 
-public void setAdvPageSize(int pageSize) {
+    public void setAdvPageSize(int pageSize) {
 
-    int oldValue = paginationModel.getPageSize();
+        int oldValue =
+                paginationModel.getPageSize();
 
-    paginationModel.setPageSize(pageSize);
+        paginationModel.setPageSize(pageSize);
 
-    firePropertyChange(
-            "advPageSize",
-            oldValue,
-            paginationModel.getPageSize()
-    );
-}
+        firePropertyChange(
+                "advPageSize",
+                oldValue,
+                paginationModel.getPageSize()
+        );
+    }
 }
