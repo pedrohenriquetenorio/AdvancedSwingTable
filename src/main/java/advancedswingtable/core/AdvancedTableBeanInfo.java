@@ -28,6 +28,10 @@ public class AdvancedTableBeanInfo extends java.beans.SimpleBeanInfo {
                         AdvancedTable.class
                 ),
                 new PropertyDescriptor(
+                        "advRowHoverEnabled",
+                        AdvancedTable.class
+                ),
+                new PropertyDescriptor(
                         "advAutoResizeColumns",
                         AdvancedTable.class
                 ),
@@ -70,6 +74,10 @@ public class AdvancedTableBeanInfo extends java.beans.SimpleBeanInfo {
                 new PropertyDescriptor(
                         "advPageSize",
                         AdvancedTable.class
+                ),
+                new PropertyDescriptor(
+                        "advEmptyText",
+                        AdvancedTable.class
                 )
             };
 
@@ -91,5 +99,28 @@ public class AdvancedTableBeanInfo extends java.beans.SimpleBeanInfo {
     @Override
     public PropertyDescriptor[] getPropertyDescriptors() {
         return properties;
+    }
+
+    /**
+     * Sem isto, o Introspector usa SOMENTE as propriedades "adv*"
+     * acima e esconde as propriedades nativas do JTable/JComponent
+     * (font, background, rowHeight, etc.) na aba de propriedades do
+     * NetBeans. Ao mesclar o BeanInfo padrão da superclasse aqui, as
+     * duas listas aparecem juntas no editor de propriedades.
+     */
+    @Override
+    public BeanInfo[] getAdditionalBeanInfo() {
+
+        try {
+
+            return new BeanInfo[]{
+                Introspector.getBeanInfo(
+                        AdvancedTable.class.getSuperclass()
+                )
+            };
+
+        } catch (IntrospectionException ex) {
+            return new BeanInfo[0];
+        }
     }
 }
