@@ -1,0 +1,42 @@
+
+ADVANCED TABLE — FUNCIONALIDADES
+
+[ ] Filtro por coluna
+[ ] Filtros por tipo (texto, número, data, combo, boolean)
+[ ] Filtro por intervalo (datas e números)
+[ ] Ordenação múltipla
+[ ] Colunas ocultáveis
+[ ] Menu de seleção de colunas
+[ ] Salvar configuração das colunas
+[ ] Double click na linha
+[ ] Evento de seleção de linha
+[ ] Menu de contexto (botão direito)
+[ ] Copiar célula
+[ ] Copiar linha
+[ ] Copiar seleção múltipla
+[ ] Selecionar todas as linhas
+[ ] Limpar seleção
+[ ] Obter linhas selecionadas pelo índice do Model
+[ ] Checkbox de seleção por linha
+[ ] Checkbox "Selecionar todos" no cabeçalho
+[ ] Coluna de ações
+[ ] Estado de carregamento
+[ ] Estado de erro
+[ ] Estado "nenhum resultado para o filtro"
+[ ] Atualização dos dados sem perder seleção
+[ ] Atualização individual de uma linha
+[ ] Linha de resumo / totais
+[ ] Contador de registros
+[ ] Exportação CSV
+[ ] Exportação Excel
+[ ] Exportação PDF
+[ ] Filtros avançados
+[ ] Persistência das configurações por usuário
+
+Base/arquitetura para facilitar as próximas:
+
+[ ] Sistema de eventos da AdvancedTable
+[ ] Estado interno da tabela
+[ ] Gerenciamento centralizado das colunas
+[ ] Gerenciamento centralizado da seleção
+[ ] Separar funcionalidades auxiliares em classes/serviços
